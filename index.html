@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SA Meal Planner & Budget Helper</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/html-docx-js/dist/html-docx.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        .active-tab { border-bottom: 4px solid #16a34a; color: #16a34a; font-weight: bold; }
+        .meal-card:hover { transform: translateY(-4px); transition: transform 0.2s ease-in-out; }
+    </style>
+</head>
+<body class="bg-gray-50 font-sans text-gray-800 min-h-screen">
+    <header class="bg-emerald-700 text-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 py-6 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div>
+                <h1 class="text-3xl font-extrabold tracking-tight flex items-center gap-3">
+                    <i class="fa-solid fa-utensils"></i> Mzansi Meal Budgeter
+                </h1>
+                <p class="text-emerald-100 text-sm mt-1">Smart South African meal planning tailored to your store & budget</p>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="switchTab('planner')" class="bg-emerald-800 hover:bg-emerald-900 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition">
+                    <i class="fa-solid fa-calendar-days"></i> Meal Planner
+                </button>
+                <button onclick="switchTab('patties')" class="bg-emerald-800 hover:bg-emerald-900 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition">
+                    <i class="fa-solid fa-burger"></i> Patties & Burgers
+                </button>
+                <button onclick="switchTab('salads')" class="bg-emerald-800 hover:bg-emerald-900 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition">
+                    <i class="fa-solid fa-leaf"></i> 10 Fresh Salads
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 py-8">
+        <section id="sec-planner">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-8">
+                <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-sliders text-emerald-600"></i> Plan Parameters
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Days to Plan</label>
+                        <select id="select-days" class="w-full border-gray-300 rounded-lg p-2.5 bg-gray-50 border focus:ring-2 focus:ring-emerald-500">
+                            <option value="2">2 Days</option>
+                            <option value="4" selected>4 Days</option>
+                            <option value="6">6 Days</option>
+                            <option value="7">7 Days</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">People to Feed</label>
+                        <input type="number" id="input-people" value="4" min="1" class="w-full border-gray-300 rounded-lg p-2.5 bg-gray-50 border focus:ring-2 focus:ring-emerald-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Budget (ZAR R)</label>
+                        <input type="number" id="input-budget" value="1200" min="100" step="50" class="w-full border-gray-300 rounded-lg p-2.5 bg-gray-50 border focus:ring-2 focus:ring-emerald-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Preferred Store</label>
+                        <select id="select-store" class="w-full border-gray-300 rounded-lg p-2.5 bg-gray-50 border focus:ring-2 focus:ring-emerald-500">
+                            <option value="Checkers">Checkers</option>
+                            <option value="Pick n Pay">Pick n Pay</option>
+                            <option value="SPAR">SPAR</option>
+                            <option value="Woolworths">Woolworths</option>
+                            <option value="Food Lover's Market">Food Lover's Market</option>
+                        </select>
+                    </div>
+                </div>
+                <button onclick="generatePlan()" class="mt-6 w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-6 rounded-xl shadow-md transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i> Generate Optimized Meal Plan & Shopping List
+                </button>
+            </div>
+
+            <div id="plan-results" class="hidden space-y-8">
+                <div class="bg-gradient-to-r from-emerald-600 to-teal-700 text-white p-6 rounded-2xl flex flex-col md:flex-row justify-between items-center shadow-md">
+                    <div>
+                        <h3 class="text-2xl font-bold">Your Custom Menu Summary</h3>
+                        <p id="plan-summary-text" class="text-emerald-100 text-sm mt-1"></p>
+                    </div>
+                    <button onclick="exportToWord()" class="mt-4 md:mt-0 bg-white text-emerald-800 font-bold px-5 py-2.5 rounded-xl shadow hover:bg-emerald-50 transition flex items-center gap-2">
+                        <i class="fa-solid fa-file-word text-blue-600"></i> Export Shopping List (.docx)
+                    </button>
+                </div>
+
+                <div id="days-container" class="space-y-6"></div>
+            </div>
+        </section>
+
+        <section id="sec-patties" class="hidden space-y-8">
+            <div class="border-b border-gray-200 pb-4">
+                <h2 class="text-2xl font-bold text-gray-900">5 Gourmet Patty Recipes & 5 Signature Burgers</h2>
+                <p class="text-gray-600 text-sm">Master homemade patties and pair them with ultimate burger builds.</p>
+            </div>
+            <div>
+                <h3 class="text-xl font-bold text-emerald-700 mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-drumstick-bite"></i> 5 Patty Recipes
+                </h3>
+                <div id="patties-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+            </div>
+            <div>
+                <h3 class="text-xl font-bold text-emerald-700 mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-burger"></i> 5 Complete Burger Builds
+                </h3>
+                <div id="burgers-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+            </div>
+        </section>
+
+        <section id="sec-salads" class="hidden space-y-8">
+            <div class="border-b border-gray-200 pb-4">
+                <h2 class="text-2xl font-bold text-gray-900">10 Fresh & Vibrant Salad Recipes</h2>
+                <p class="text-gray-600 text-sm">Healthy, crisp, and delicious side salads for any meal.</p>
+            </div>
+            <div id="salads-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+        </section>
+    </main>
+
+    <div id="recipe-modal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 space-y-4 relative">
+            <button onclick="closeModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-xl font-bold">&times;</button>
+            <h3 id="modal-title" class="text-2xl font-bold text-gray-900"></h3>
+            <img id="modal-img" class="w-full h-56 object-cover rounded-xl" src="" alt="">
+            <div>
+                <h4 class="font-bold text-emerald-700">Ingredients</h4>
+                <ul id="modal-ingredients" class="list-disc list-inside text-sm text-gray-700 space-y-1"></ul>
+            </div>
+            <div>
+                <h4 class="font-bold text-emerald-700">Instructions</h4>
+                <ol id="modal-instructions" class="list-decimal list-inside text-sm text-gray-700 space-y-1"></ol>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const storeMultipliers = {
+            "SPAR": 1.0,
+            "Checkers": 0.95,
+            "Pick n Pay": 0.98,
+            "Woolworths": 1.25,
+            "Food Lover's Market": 0.90
+        };
+
+        const mealDatabase = [
+            { id: 'm1', name: 'South African Beef & Oat Burger', category: 'Dinner', baseCost: 35, prep: '25 min', calories: 520, img: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=600&q=80', ingredients: ['500g Beef mince', '1/2 cup Rolled oats', '1 Egg', '1 Chopped onion', 'Burger buns', 'Lettuce & tomato'], steps: ['Mix mince, oats, egg, and onion.', 'Form into patties and grill for 5 mins each side.', 'Assemble with fresh buns and salad toppings.'] },
+            { id: 'm2', name: 'Chickpea & Veggie Curry', category: 'Dinner', baseCost: 22, prep: '20 min', calories: 410, img: 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?auto=format&fit=crop&w=600&q=80', ingredients: ['2 cans Chickpeas', '1 can Diced tomatoes', '1 Coconut milk', 'Curry powder', 'Rice'], steps: ['Sauté onions and spices.', 'Add chickpeas, tomatoes, and coconut milk.', 'Simmer for 15 mins and serve over steamed rice.'] },
+            { id: 'm3', name: 'Creamy Spinach & Chicken Pasta', category: 'Dinner', baseCost: 32, prep: '30 min', calories: 580, img: 'https://images.unsplash.com/photo-1621996346565-e3d5d6281270?auto=format&fit=crop&w=600&q=80', ingredients: ['400g Chicken breast', '250g Penne pasta', '200ml Fresh cream', '200g Fresh spinach', 'Garlic & parmesan'], steps: ['Boil pasta.', 'Sear chicken strips with garlic.', 'Add cream and spinach, cook until thickened, toss pasta.'] },
+            { id: 'm4', name: 'Traditional Chakalaka & Pap with Boerewors', category: 'Dinner', baseCost: 28, prep: '35 min', calories: 610, img: 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=600&q=80', ingredients: ['500g Boerewors', '2 cups Maize meal', '1 can Baked beans', 'Grated carrots & peppers', 'Chili powder'], steps: ['Cook pap until smooth.', 'Sauté carrots, peppers, and beans with spice for Chakalaka.', 'Pan-fry boerewors and serve together.'] },
+            { id: 'm5', name: 'Hearty Lentil & Vegetable Stew', category: 'Dinner', baseCost: 18, prep: '40 min', calories: 380, img: 'https://images.unsplash.com/photo-1547592166-23ac45744acd?auto=format&fit=crop&w=600&q=80', ingredients: ['1 cup Brown lentils', '2 Carrots chopped', '2 Potatoes diced', 'Vegetable stock', 'Garlic & herbs'], steps: ['Rinse lentils.', 'Sauté veggies in pot, add stock and lentils.', 'Simmer covered for 35 mins until tender.'] },
+            { id: 'm6', name: 'Savory Savanna Cottage Pie', category: 'Dinner', baseCost: 30, prep: '45 min', calories: 540, img: 'https://images.unsplash.com/photo-1584947897854-e493b8214227?auto=format&fit=crop&w=600&q=80', ingredients: ['500g Beef mince', '4 Large potatoes (mashed)', '1 cup Peas & carrots', 'Beef stock', 'Cheddar cheese'], steps: ['Cook mince with veggies and gravy stock.', 'Transfer to baking dish.', 'Top with mashed potato and cheese, bake at 190°C for 20 mins.'] }
+        ];
+
+        const pattyRecipes = [
+            { name: 'Classic Beef Patty', desc: 'Juicy 100% beef patty with secret seasoning.', img: 'https://images.unsplash.com/photo-1550547660-d9450f859349?auto=format&fit=crop&w=600&q=80', ingredients: ['500g Beef mince', '1 tsp Garlic powder', '1 tsp Onion salt', 'Black pepper'], steps: ['Mix gently.', 'Form 4 patties.', 'Grill on medium high 4 mins per side.'] },
+            { name: 'Boerewors Spice Beef Patty', desc: 'Infused with coriander and cloves for a South African twist.', img: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=600&q=80', ingredients: ['500g Ground beef', '1 tbsp Ground coriander', '1/4 tsp Ground cloves', '1 tbsp Vinegar'], steps: ['Combine spices with meat.', 'Shape into patties.', 'Pan-sear until cooked to medium.'] },
+            { name: 'Herb & Garlic Chicken Patty', desc: 'Lean chicken patty packed with herbs.', img: 'https://images.unsplash.com/photo-1521305916504-4a1121188589?auto=format&fit=crop&w=600&q=80', ingredients: ['500g Chicken mince', '2 Garlic cloves minced', '2 tbsp Chopped parsley', '1/2 cup Breadcrumbs'], steps: ['Mix ingredients well.', 'Chill for 15 mins.', 'Fry in olive oil for 5 mins each side.'] },
+            { name: 'Spicy Lamb & Mint Patty', desc: 'Rich lamb patty balanced with fresh mint.', img: 'https://images.unsplash.com/photo-1586190848861-99aa4a171e90?auto=format&fit=crop&w=600&q=80', ingredients: ['500g Lamb mince', '2 tbsp Fresh mint', '1 tsp Cumin', '1/2 Red onion finely diced'], steps: ['Combine all ingredients.', 'Form patty shapes.', 'Grill over hot coals or stovetop.'] },
+            { name: 'Crispy Black Bean & Corn Patty (V)', desc: 'Hearty vegetarian patty full of flavor.', img: 'https://images.unsplash.com/photo-1520072959219-c595dc870360?auto=format&fit=crop&w=600&q=80', ingredients: ['1 can Black beans (mashed)', '1/2 cup Sweetcorn', '1/2 cup Breadcrumbs', '1 tsp Smoked paprika'], steps: ['Mash beans.', 'Fold in corn, crumbs, and paprika.', 'Pan fry until crisp on both sides.'] }
+        ];
+
+        const burgerRecipes = [
+            { name: 'The Mzansi Braai Burger', desc: 'Topped with chakalaka, cheddar, and braai sauce.', img: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=600&q=80', ingredients: ['Classic Patty', 'Bun', 'Chakalaka', 'Cheddar slice'], steps: ['Grill patty.', 'Toast bun.', 'Top patty with melted cheddar and hot chakalaka.'] },
+            { name: 'Smokey Bacon & Avocado Burger', desc: 'Crispy bacon, sliced avocado, and garlic mayo.', img: 'https://images.unsplash.com/photo-1553979459-d2229ba7433b?auto=format&fit=crop&w=600&q=80', ingredients: ['Beef Patty', 'Brioche Bun', '2 Bacon strips', '1/2 Avocado', 'Garlic Mayo'], steps: ['Fry bacon until crisp.', 'Build burger with patty, bacon, fresh avocado, and mayo.'] },
+            { name: 'Mushroom & Swiss Melt Burger', desc: 'Sautéed brown mushrooms with melted Swiss cheese.', img: 'https://images.unsplash.com/photo-1572802419224-296b0aeee0d9?auto=format&fit=crop&w=600&q=80', ingredients: ['Beef Patty', 'Swiss cheese', '1 cup Mushrooms', 'Butter'], steps: ['Sauté mushrooms in butter.', 'Melt Swiss cheese over cooked patty.', 'Assemble burger.'] },
+            { name: 'Peri-Peri Chicken Burger', desc: 'Zesty spicy chicken patty with tangy slaw.', img: 'https://images.unsplash.com/photo-1625813506062-0aeb1d7a094b?auto=format&fit=crop&w=600&q=80', ingredients: ['Chicken Patty', 'Peri-peri sauce', 'Cabbage slaw', 'Pickles'], steps: ['Coat patty in peri-peri sauce.', 'Grill and serve on bun with crunchy slaw.'] },
+            { name: 'Loaded Veggie Crunch Burger', desc: 'Black bean patty with guacamole and salsa.', img: 'https://images.unsplash.com/photo-1525059696034-4967a8e1dca2?auto=format&fit=crop&w=600&q=80', ingredients: ['Black Bean Patty', 'Guacamole', 'Tomato Salsa', 'Lettuce'], steps: ['Pan-fry bean patty.', 'Layer with guacamole, salsa, and crisp lettuce.'] }
+        ];
+
+        const saladRecipes = [
+            { name: 'Classic South African Greek Salad', desc: 'Feta, olives, cucumbers, and tomatoes.', img: 'https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=600&q=80', ingredients: ['Cucumber', 'Cherry tomatoes', 'Feta cheese', 'Kalamata olives', 'Olive oil'], steps: ['Chop vegetables.', 'Combine in bowl with olives and cubed feta.', 'Drizzle olive oil.'] },
+            { name: 'Creamy Potato & Chive Salad', desc: 'Comforting side salad with mayo and fresh chives.', img: 'https://images.unsplash.com/photo-1543339308-43e59d6b73a6?auto=format&fit=crop&w=600&q=80', ingredients: ['4 Boiled potatoes', '1/2 cup Mayonnaise', 'Fresh chives', 'Salt & pepper'], steps: ['Dice cooled potatoes.', 'Fold gently with mayonnaise and chives.'] },
+            { name: 'Crunchy Rainbow Coleslaw', desc: 'Red & white cabbage with shredded carrots.', img: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=600&q=80', ingredients: ['Red cabbage', 'White cabbage', 'Carrot', 'Tangy dressing'], steps: ['Shred cabbages and carrots finely.', 'Toss with dressing before serving.'] },
+            { name: 'Sweetcorn & Black Bean Salad', desc: 'Zesty Southwestern style salad.', img: 'https://images.unsplash.com/photo-1551248429-40975aa4de74?auto=format&fit=crop&w=600&q=80', ingredients: ['1 can Corn', '1 can Black beans', 'Coriander', 'Lime juice'], steps: ['Drain corn and beans.', 'Mix with coriander, lime juice, and salt.'] },
+            { name: 'Butternut & Spinach Warm Salad', desc: 'Roasted butternut with pumpkin seeds.', img: 'https://images.unsplash.com/photo-1505253716362-afaea1d3d1af?auto=format&fit=crop&w=600&q=80', ingredients: ['Roasted butternut cubes', 'Baby spinach', 'Pumpkin seeds', 'Balsamic reduction'], steps: ['Toss roasted butternut with baby spinach.', 'Top with seeds and drizzle glaze.'] },
+            { name: 'Roasted Beetroot & Goat Cheese Salad', desc: 'Earthy beetroot paired with creamy cheese.', img: 'https://images.unsplash.com/photo-1592417817098-8f3d6ef23a28?auto=format&fit=crop&w=600&q=80', ingredients: ['Pickled/roasted beetroot', 'Goat cheese', 'Rocket leaves', 'Walnuts'], steps: ['Arrange rocket leaves.', 'Top with sliced beetroot, crumbled cheese, and nuts.'] },
+            { name: 'Caesar Salad with Crispy Croutons', desc: 'Crisp romaine lettuce with Caesar dressing.', img: 'https://images.unsplash.com/photo-1550304943-4f24f54ddde9?auto=format&fit=crop&w=600&q=80', ingredients: ['Romaine lettuce', 'Croutons', 'Parmesan shavings', 'Caesar dressing'], steps: ['Toss romaine with Caesar dressing.', 'Garnish with croutons and parmesan.'] },
+            { name: 'Watermelon & Mint Refreshing Salad', desc: 'Hydrating summer melon salad.', img: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?auto=format&fit=crop&w=600&q=80', ingredients: ['Watermelon cubes', 'Fresh mint', 'Feta cheese', 'Lime juice'], steps: ['Combine chilled watermelon cubes with mint and feta.'] },
+            { name: 'Avocado & Tomato Caprese Salad', desc: 'Slices of ripe avocado, tomato, and mozzarella.', img: 'https://images.unsplash.com/photo-1592417817098-8f3d6ef23a28?auto=format&fit=crop&w=600&q=80', ingredients: ['Avocado', 'Tomatoes', 'Mozzarella', 'Basil'], steps: ['Layer slices of tomato, avocado, and mozzarella.', 'Garnish with fresh basil.'] },
+            { name: 'Three-Bean Salad Mzansi Style', desc: 'Classic South African braai favorite.', img: 'https://images.unsplash.com/photo-1540420773420-3366772f4999?auto=format&fit=crop&w=600&q=80', ingredients: ['Green beans', 'Kidney beans', 'Butter beans', 'Vinaigrette'], steps: ['Mix all three beans together.', 'Pour over vinaigrette and chill for 1 hour.'] }
+        ];
+
+        let currentSelectedMeals = [];
+
+        function switchTab(tab) {
+            document.getElementById('sec-planner').classList.add('hidden');
+            document.getElementById('sec-patties').classList.add('hidden');
+            document.getElementById('sec-salads').classList.add('hidden');
+            document.getElementById(`sec-${tab}`).classList.remove('hidden');
+        }
+
+        function generatePlan() {
+            const days = parseInt(document.getElementById('select-days').value);
+            const people = parseInt(document.getElementById('input-people').value);
+            const budget = parseFloat(document.getElementById('input-budget').value);
+            const store = document.getElementById('select-store').value;
+            const mult = storeMultipliers[store];
+
+            currentSelectedMeals = [];
+            const container = document.getElementById('days-container');
+            container.innerHTML = '';
+
+            for (let i = 1; i <= days; i++) {
+                const mainMeal = mealDatabase[(i - 1) % mealDatabase.length];
+                const alternatives = mealDatabase.filter(m => m.id !== mainMeal.id).slice(0, 3);
+                currentSelectedMeals.push(mainMeal);
+
+                const dayCost = (mainMeal.baseCost * mult * people).toFixed(2);
+
+                const cardHtml = `
+                    <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+                        <div class="flex justify-between items-center mb-4 pb-2 border-b">
+                            <h3 class="text-xl font-bold text-gray-800">Day ${i} Menu</h3>
+                            <span class="bg-emerald-100 text-emerald-800 text-xs font-bold px-3 py-1 rounded-full">Est. Cost (${store}): R${dayCost}</span>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div class="md:col-span-2 flex flex-col md:flex-row gap-4 bg-gray-50 p-4 rounded-xl">
+                                <img src="${mainMeal.img}" class="w-full md:w-40 h-32 object-cover rounded-lg">
+                                <div class="flex-1">
+                                    <span class="text-xs font-bold text-emerald-600 uppercase tracking-wide">${mainMeal.category}</span>
+                                    <h4 class="text-lg font-bold text-gray-900">${mainMeal.name}</h4>
+                                    <p class="text-xs text-gray-500 mt-1"><i class="fa-regular fa-clock"></i> ${mainMeal.prep} | <i class="fa-solid fa-fire"></i> ${mainMeal.calories} kcal/person</p>
+                                    <button onclick="openModal('${mainMeal.name}', '${mainMeal.img}', ${JSON.stringify(mainMeal.ingredients).replace(/"/g, '&quot;')}, ${JSON.stringify(mainMeal.steps).replace(/"/g, '&quot;')})" class="mt-3 text-sm font-semibold text-emerald-700 hover:text-emerald-800 underline">
+                                        View Recipe & Details &rarr;
+                                    </button>
+                                </div>
+                            </div>
+                            <div>
+                                <h5 class="text-xs font-bold text-gray-500 uppercase mb-2">3 Alternative Meals</h5>
+                                <div class="space-y-2">
+                                    ${alternatives.map(alt => `
+                                        <div class="p-2 border rounded-lg bg-white flex justify-between items-center text-xs">
+                                            <span class="font-medium text-gray-700">${alt.name}</span>
+                                            <button onclick="swapMeal(${i - 1}, '${alt.id}')" class="text-emerald-600 font-bold hover:underline">Select</button>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.innerHTML += cardHtml;
+            }
+
+            const totalEst = currentSelectedMeals.reduce((acc, m) => acc + (m.baseCost * mult * people), 0);
+            document.getElementById('plan-summary-text').innerText = `${days} Days | ${people} People | Selected Store: ${store} | Est. Total: R${totalEst.toFixed(2)} (Budget: R${budget})`;
+
+            document.getElementById('plan-results').classList.remove('hidden');
+        }
+
+        function swapMeal(dayIndex, newMealId) {
+            const newMeal = mealDatabase.find(m => m.id === newMealId);
+            if (newMeal) {
+                currentSelectedMeals[dayIndex] = newMeal;
+                generatePlan();
+            }
+        }
+
+        function renderGrid(containerId, items) {
+            const c = document.getElementById(containerId);
+            c.innerHTML = items.map(item => `
+                <div class="bg-white border rounded-2xl overflow-hidden shadow-sm meal-card">
+                    <img src="${item.img}" class="w-full h-44 object-cover">
+                    <div class="p-4">
+                        <h4 class="font-bold text-gray-900 text-base">${item.name}</h4>
+                        <p class="text-xs text-gray-600 mt-1 mb-3">${item.desc}</p>
+                        <button onclick="openModal('${item.name}', '${item.img}', ${JSON.stringify(item.ingredients).replace(/"/g, '&quot;')}, ${JSON.stringify(item.steps).replace(/"/g, '&quot;')})" class="w-full bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold py-2 rounded-lg text-xs">
+                            View Full Recipe
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function openModal(title, img, ingredients, steps) {
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-img').src = img;
+            document.getElementById('modal-ingredients').innerHTML = ingredients.map(i => `<li>${i}</li>`).join('');
+            document.getElementById('modal-instructions').innerHTML = steps.map(s => `<li>${s}</li>`).join('');
+            document.getElementById('recipe-modal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('recipe-modal').classList.add('hidden');
+        }
+
+        function exportToWord() {
+            const store = document.getElementById('select-store').value;
+            const people = document.getElementById('input-people').value;
+
+            let html = `
+                <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+                <head><title>Shopping List</title></head>
+                <body style="font-family: Arial, sans-serif; padding: 20px;">
+                    <h1 style="color: #16a34a;">Grocery Shopping List</h1>
+                    <p><strong>Supplier:</strong> ${store}</p>
+                    <p><strong>Serving Size:</strong> ${people} People</p>
+                    <hr/>
+                    <h3>Items to Buy:</h3>
+                    <ul>
+            `;
+
+            currentSelectedMeals.forEach(meal => {
+                meal.ingredients.forEach(ing => {
+                    html += `<li>[ ] ${ing}</li>`;
+                });
+            });
+
+            html += `
+                    </ul>
+                    <p style="margin-top: 30px; font-size: 12px; color: #666;">Generated by Mzansi Meal Budgeter</p>
+                </body>
+                </html>
+            `;
+
+            const converted = htmlDocx.asBlob(html);
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(converted);
+            link.download = `Shopping_List_${store}.docx`;
+            link.click();
+        }
+
+        window.onload = function() {
+            renderGrid('patties-grid', pattyRecipes);
+            renderGrid('burgers-grid', burgerRecipes);
+            renderGrid('salads-grid', saladRecipes);
+        }
+    </script>
+</body>
+</html>
